@@ -1,0 +1,40 @@
+name: Deploy Scraper
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/desmodas-scraper
+
+            # Pull latest code
+            git pull origin main
+
+            # Rebuild and restart containers
+            docker compose up --build -d
+
+            # Wait for health check
+            echo "Waiting for scraper to start..."
+            for i in $(seq 1 12); do
+              if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
+                echo "Scraper is healthy!"
+                exit 0
+              fi
+              echo "Attempt $i/12 - waiting 5s..."
+              sleep 5
+            done
+
+            echo "Health check failed after 60s"
+            docker compose logs --tail=50 scraper
+            exit 1
