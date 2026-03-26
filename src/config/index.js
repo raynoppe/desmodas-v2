@@ -1,9 +1,13 @@
 import dotenv from 'dotenv';
 import { resolve } from 'path';
+import { existsSync } from 'fs';
 
-// Explicitly load .env from project root
-// override: true ensures .env values take precedence over shell env vars
-dotenv.config({ path: resolve(process.cwd(), '.env'), override: true });
+// Load .env file if it exists (development). In production (Docker),
+// env vars are passed via env_file in docker-compose.yml.
+const envPath = resolve(process.cwd(), '.env');
+if (existsSync(envPath)) {
+  dotenv.config({ path: envPath, override: true });
+}
 
 function required(key) {
   const value = process.env[key];
